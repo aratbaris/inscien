@@ -1,9 +1,8 @@
 # Running & shipping InScien
 
-How to run InScien in **development** (host-native, no Docker) and how the shipped **desktop
-app** serves everything from one process. For what InScien *is*, see [`README.md`](README.md);
-for architecture internals, [`CLAUDE.md`](CLAUDE.md) and [`INSCIEN-BRIEF.md`](INSCIEN-BRIEF.md);
-for building the installers, [`PACKAGING.md`](PACKAGING.md).
+How to run InScien in **development** (host-native, no Docker), how the shipped app (`uvx
+inscien`) serves everything from one process, and how a release is cut. For what InScien *is*,
+see [`README.md`](README.md); for architecture internals, [`CLAUDE.md`](CLAUDE.md).
 
 InScien is **local-first and single-user**: one machine, no auth, no cloud. Generation runs
 against a **native Ollama on the host** (or an optional OpenAI key); everything else runs locally.
@@ -50,12 +49,11 @@ BOTH the API and the static UI on one loopback port, and opens the user's own br
 `backend/launcher.py` is the entry point. The wheel is built + published by
 [`.github/workflows/release.yml`](.github/workflows/release.yml) on a `v*` tag (single Linux job;
 native deps resolve per-OS at install time). Everything is self-contained: Kokoro bundles espeak
-(via `espeakng-loader`), `imageio-ffmpeg` bundles ffmpeg - no system packages. A native Tauri
-build still exists under `src-tauri/` but is **experimental/unsupported** (see
-[`PACKAGING.md`](PACKAGING.md)).
+(via `espeakng-loader`), `imageio-ffmpeg` bundles ffmpeg - no system packages. There are no
+native desktop installers and nothing is frozen with PyInstaller.
 
 What matters here is *how it serves*: **one process, one origin** - the same shape as dev's
-backend, minus the separate Next dev server. (The Tauri build, when used, serves the exact same way.)
+backend, minus the separate Next dev server.
 
 1. **The frontend is a static export.** `next.config.ts` sets `output: "export"`, so
    `next build` emits plain HTML/JS/CSS to `frontend/out/` (no Node server at runtime).
@@ -71,13 +69,35 @@ backend, minus the separate Next dev server. (The Tauri build, when used, serves
    in a single `data/openalex.json` - no database, no extra service. The Map is built from it;
    there is no embedding or vector store.
 
+### Cutting a release
+
+The whole release is one tag push. `.github/workflows/release.yml` builds the static UI, vendors
+it into `backend/webui`, builds the wheel with `uv build`, and publishes to PyPI via **trusted
+publishing** (OIDC - no stored token; one-time setup is adding this repo as a trusted publisher
+for `inscien` on pypi.org).
+
+```bash
+# 1) Bump the package version - the workflow FAILS if the tag does not match it.
+#    Edit backend/pyproject.toml: version = "X.Y.Z"
+git commit -am "bump version to X.Y.Z for release"
+
+# 2) Push main first - the tag build checks out the tagged commit.
+git push origin main
+
+# 3) Tag and push the tag - this triggers the release workflow.
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+To build the same wheel locally (into `backend/dist/`, not published): `make wheel`.
+
 ---
 
 ## Data, persistence & reset
 
 All durable state lives under **one base dir**: the repo-root `data/` folder in host dev (override
-with `INSCIEN_DATA_DIR`), or the OS per-user app-data dir in the desktop app (Tauri sets
-`INSCIEN_DATA_DIR`).
+with `INSCIEN_DATA_DIR`), or the OS per-user app-data dir in the installed app (`launcher.py`
+sets `INSCIEN_DATA_DIR` via `platformdirs`).
 
 | Path | What |
 |---|---|
@@ -126,7 +146,7 @@ A few advanced knobs are read only from the environment - export them in the she
 Things that are non-obvious because the shipped UI is a static export served by FastAPI:
 
 - **API base.** `src/lib/api.ts`: `NEXT_PUBLIC_API_URL ?? (dev ? "http://localhost:8000" : "")`.
-  Empty = same origin (production/desktop); dev defaults to the local backend. Inlined at build time.
+  Empty = same origin (the shipped app); dev defaults to the local backend. Inlined at build time.
 - **Root redirect.** `/ -> /ask` is a **client-side** redirect (`src/app/page.tsx`), because a
   static export has no server to issue an HTTP redirect.
 - **pdf.js worker.** `new URL(..., import.meta.url)` doesn't resolve under static export, so

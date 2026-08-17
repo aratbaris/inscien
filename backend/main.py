@@ -1,11 +1,6 @@
-import sys
-
 from dotenv import load_dotenv
 
-# In a frozen desktop build all config comes from the parent (Tauri) environment - don't pick up a
-# stray `.env` from the working directory.
-if not getattr(sys, "frozen", False):
-    load_dotenv()
+load_dotenv()
 
 import logging
 

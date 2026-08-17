@@ -69,6 +69,12 @@ dependencies = [
     "audioop-lts; python_version >= '3.13'",
 ]
 
+# GitHub is the project's only public surface (there is no website), so point PyPI at the repo.
+[project.urls]
+Homepage = "https://github.com/barisarat/inscien"
+Source = "https://github.com/barisarat/inscien"
+Issues = "https://github.com/barisarat/inscien/issues"
+
 [project.scripts]
 inscien = "launcher:main"
 
@@ -78,7 +84,6 @@ inscien = "launcher:main"
 only-include = [
     "launcher.py",
     "main.py",
-    "run_server.py",
     "core",
     "models",
     "repositories",

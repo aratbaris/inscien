@@ -69,13 +69,9 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+# PyInstaller (not used - InScien ships as a pure-Python wheel, nothing is frozen)
 *.manifest
 *.spec
-# ...but ours is a hand-written, committed build input the release CI depends on.
-!backend/inscien.spec
 
 # Installer logs
 pip-log.txt
@@ -197,10 +193,8 @@ venv.bak/
 # Rope project settings
 .ropeproject
 
-# mkdocs documentation (not used here). NOTE: `site/` is our Astro marketing+docs SOURCE and
-# must be tracked, so this rule is disabled. Astro's build output (site/dist) is ignored by
-# site/.gitignore instead.
-# /site
+# mkdocs documentation (not used here - the docs live in README.md)
+/site
 
 # mypy
 .mypy_cache/

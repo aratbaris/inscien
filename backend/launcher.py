@@ -1,9 +1,8 @@
 """pip / uvx entry point - run InScien as a local web app in the user's own browser.
 
-This is the non-desktop launch path: instead of the Tauri window (whose bundled WebKit is fragile
-on new GPUs), the backend serves BOTH the API and the static UI on one loopback port, and we open
-the system browser at it. Same one-process shape as the frozen desktop build (see run_server.py),
-minus the native window.
+This is how InScien ships: the backend serves BOTH the API and the static UI on one loopback
+port, and we open the system browser at it. One process, one origin, no native window and no
+separate frontend server.
 
 Installed as the `inscien` console script (see pyproject.toml). Everything is self-contained:
 Kokoro bundles espeak via espeakng-loader, imageio-ffmpeg bundles ffmpeg - no system packages.

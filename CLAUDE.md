@@ -13,10 +13,11 @@ finance domain. The original chat/agent ("RAG-cite"), the `/compare` and `/write
 is Map + Narrate.
 
 Single-user, local, no auth. Stack: FastAPI backend + Next.js frontend (static export). SQLite for
-app state; the citation data is a JSON cache (`data/openalex.json`). Distributed as a **cross-OS
-desktop app** (Tauri, with the backend frozen into a sidecar). Narration scripts run against the
-user's local Ollama by default, or an optional OpenAI key - both configured in-app. The Map needs
-no model at all (just OpenAlex over each paper's DOI).
+app state; the citation data is a JSON cache (`data/openalex.json`). Distributed as a **pure-Python
+wheel on PyPI**, run as `uvx inscien`: one local process that serves the API and the UI on a
+loopback port and opens the user's own browser at it. Narration scripts run against the user's
+local Ollama by default, or an optional OpenAI key - both configured in-app. The Map needs no model
+at all (just OpenAlex over each paper's DOI).
 
 ## Running the stack
 
@@ -35,8 +36,8 @@ There is no indexing step: browse Zotero collections in the sidebar and select p
 fetches their citations from OpenAlex on demand. An opt-in "Fetch citations" action warms the
 whole library's references in the background, so any selection then renders instantly. A local
 Ollama is needed only for narration. Point InScien at the Zotero data dir via the Settings page
-(`ZOTERO_DATA_DIR` is an env fallback). Desktop installers are built by the release CI on a `v*`
-tag; to build locally, see `PACKAGING.md`. Full run/serve details in `RUNNING.md`.
+(`ZOTERO_DATA_DIR` is an env fallback). The wheel is published to PyPI by the release CI on a `v*`
+tag; to build it locally, `make wheel`. Full run/serve/release details in `RUNNING.md`.
 
 ## Architecture
 
@@ -95,33 +96,43 @@ snapshot, job dirs). Zotero paths in `services/zotero/settings.py`. DB via `core
 
 ## Packaging / distribution
 
-**Desktop (`src-tauri/`).** A Tauri 2 shell spawns the backend frozen by **PyInstaller**
-(`backend/run_server.py` + `backend/inscien.spec`, one-file) as a sidecar; the frozen backend
-serves BOTH the API and the static UI on one loopback port (the `FRONTEND_DIST` static mount in
-`main.py`), and the webview points at it. ML weights are not bundled (the Kokoro voice downloads on
-demand). Linux runtime fixes live in `main.rs` (disable WebKit DMABUF for bare WMs;
-append system GStreamer plugin paths so `<audio>` plays), and `tts_engine` restores
-`LD_LIBRARY_PATH_ORIG` when spawning ffmpeg from the frozen process. Cross-OS installers are built
-by `.github/workflows/release.yml` on a `v*` tag (unsigned v1). Full runbook in `PACKAGING.md`.
+**Browser-served app (`backend/launcher.py`).** The shipped artifact is the `inscien` wheel on
+PyPI. `launcher.py` is the `inscien` console script: it sets `ENV_NAME=production`, points
+`FRONTEND_DIST` at the vendored `backend/webui`, sets `INSCIEN_DATA_DIR` to the OS app-data dir
+(`platformdirs`), picks a free loopback port, runs uvicorn, and opens the browser at it - so one
+process serves BOTH the API and the static UI on one origin (the `FRONTEND_DIST` static mount in
+`main.py`). ML weights are not bundled (the Kokoro voice downloads on demand). `make web` vendors
+the static export into `backend/webui`; `make wheel` builds the wheel.
+`.github/workflows/release.yml` does the same on a `v*` tag and publishes to PyPI via trusted
+publishing (the tag must match `backend/pyproject.toml`'s version). Nothing is frozen with
+PyInstaller and there are no native installers.
 
-**Marketing + docs site (`site/`).** Astro + Starlight, static-exported to **GitHub Pages** via
-`.github/workflows/site.yml` (deploys from `main`, independent of the installer pipeline).
+**Docs.** GitHub only - `README.md` is the single user-facing document (install, first run, Map /
+Narrate guides, settings, troubleshooting). There is no marketing or docs site: the Astro +
+Starlight `site/` and its GitHub Pages workflow were removed, so `.github/workflows/release.yml`
+is the only pipeline left.
 
 ## Status
 
 - Map + Narrate shipped. The Map is **citation-only** (OpenAlex References / Cited-by); the earlier
   semantic/embedding map, the vector store, and the whole indexing step were removed. In-app config
-  (Zotero folder + OpenAI key). Public site live at https://inscien.com/.
+  (Zotero folder + OpenAI key). Shipped as `uvx inscien` (PyPI), documented entirely in
+  `README.md` on GitHub.
 - Retired - do not reintroduce without intent: the chat / RAG-cite agent (`/api/agent/stream`,
   `search_internal_content`, the old `services/rag/` grounding loops), the `/compare` and `/write`
-  skills, AND the embedding / indexing / semantic-map layer (fastembed, the vector store,
-  `services/map/fused.py`, `/api/map`, the chunk manifest, the `ZoteroSyncItem` ledger). Gone from
-  routers, services, and the frontend.
+  skills, the embedding / indexing / semantic-map layer (fastembed, the vector store,
+  `services/map/fused.py`, `/api/map`, the chunk manifest, the `ZoteroSyncItem` ledger), AND the
+  **Tauri desktop build** (`src-tauri/`, the PyInstaller freeze `backend/inscien.spec` +
+  `run_server.py`, `scripts/build-linux.sh`, `PACKAGING.md`, the updater/signing plan - its
+  bundled WebKit was fragile on newer GPUs and the Windows/macOS installers were untestable),
+  AND the **public website** (the Astro + Starlight `site/`, `.github/workflows/site.yml`, the
+  `inscien.com` CNAME - its content now lives in `README.md`). Gone from routers, services, the
+  frontend, CI, and the docs.
 
 ## Conventions
 
 - Standalone scripts insert the backend root on `sys.path` and `load_dotenv()` themselves;
-  `main.py` skips `load_dotenv()` when frozen (env comes from the Tauri parent).
+  `main.py` calls `load_dotenv()` on import.
 - No migration framework - `Base.metadata.create_all` builds tables on startup, and
   `core/db.ensure_app_settings_columns` additively adds new `app_settings` columns.
 - **Plain ASCII copy** in all user-facing text and docs: no em/en dashes, curly quotes, or
