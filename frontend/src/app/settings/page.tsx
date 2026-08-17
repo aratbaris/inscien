@@ -4,22 +4,10 @@ import { type ReactNode, useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
-import {
-  getModelOptions,
-  getSettings,
-  updateSettings,
-  type ModelOption,
-} from "@/lib/api"
+import { getSettings, updateSettings } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 type Status = { kind: "idle" | "saving" | "saved" | "error"; message?: string }
 
@@ -72,33 +60,15 @@ function Field({
 }
 
 export default function SettingsPage() {
-  const [options, setOptions] = useState<ModelOption[]>([])
-  const [provider, setProvider] = useState("local")
-  const [selected, setSelected] = useState("")
-  const [cloudModel, setCloudModel] = useState("")
-  const [cloudModelHint, setCloudModelHint] = useState("")
-  const [openAiKeyPresent, setOpenAiKeyPresent] = useState(false)
-  const [openAiKey, setOpenAiKey] = useState("")
   const [zoteroDataDir, setZoteroDataDir] = useState("")
   const [zoteroDetected, setZoteroDetected] = useState("")
-  const [ollamaBaseUrl, setOllamaBaseUrl] = useState("")
-  const [ollamaReachable, setOllamaReachable] = useState(true)
   const [status, setStatus] = useState<Status>({ kind: "idle" })
 
   useEffect(() => {
-    Promise.all([getSettings(), getModelOptions()])
-      .then(([s, m]) => {
-        setProvider(s.llmProvider || "local")
-        setOllamaBaseUrl(s.ollamaBaseUrl)
+    getSettings()
+      .then((s) => {
         setZoteroDataDir(s.zoteroDataDir || s.zoteroDataDirDetected || "")
         setZoteroDetected(s.zoteroDataDirDetected || "")
-        setOptions(m.options)
-        setOllamaReachable(m.ollamaReachable)
-        setCloudModelHint(m.cloudModelHint ?? "")
-        setOpenAiKeyPresent(s.openAiApiKeyPresent)
-        if (s.llmProvider === "openai") setCloudModel(s.llmModel)
-        const current = s.llmProvider !== "openai" && s.llmModel ? `local|${s.llmModel}` : ""
-        setSelected(m.options.some((o) => o.value === current) ? current : (m.options[0]?.value ?? ""))
       })
       .catch((e) => setStatus({ kind: "error", message: String(e) }))
   }, [])
@@ -106,23 +76,7 @@ export default function SettingsPage() {
   async function handleSave() {
     setStatus({ kind: "saving" })
     try {
-      const model =
-        provider === "openai"
-          ? cloudModel.trim()
-          : selected.includes("|") ? selected.slice(selected.indexOf("|") + 1) : selected
-      // Send the key only when the user typed one - a blank field leaves the stored key intact.
-      const key = openAiKey.trim()
-      await updateSettings({
-        llmProvider: provider,
-        llmModel: model,
-        ollamaBaseUrl,
-        zoteroDataDir,
-        ...(key ? { openAiApiKey: key } : {}),
-      })
-      if (key) {
-        setOpenAiKeyPresent(true)
-        setOpenAiKey("")
-      }
+      await updateSettings({ zoteroDataDir })
       setStatus({ kind: "saved" })
     } catch (e) {
       setStatus({ kind: "error", message: String(e) })
@@ -139,8 +93,8 @@ export default function SettingsPage() {
         <div className="max-w-3xl" style={{ marginTop: "1.25rem", marginBottom: "1.75rem" }}>
           <h1 className="text-2xl font-medium tracking-tight">Settings</h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            InScien maps your library fully locally. Narration uses a model you choose: local
-            Ollama for privacy, or OpenAI for higher-quality cloud narration.
+            InScien maps your library fully locally. Point it at your Zotero folder - there is
+            nothing else to configure, and no model to connect.
           </p>
         </div>
 
@@ -182,88 +136,6 @@ export default function SettingsPage() {
               </p>
             )}
           </Field>
-        </SettingsSection>
-
-        <SettingsSection title="Model" description="Choose the model used for narration generation.">
-          <Field label="Provider">
-            <Select value={provider} onValueChange={(v) => setProvider(v ?? "")}>
-              <SelectTrigger className="w-full !px-4">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="local">Local (Ollama) - private, free</SelectItem>
-                <SelectItem value="openai">OpenAI - cloud, higher quality</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-
-          {provider === "local" ? (
-            <>
-              <Field
-                label="Local model"
-                help="Models are read from your running Ollama. Larger models usually produce better narration."
-              >
-                <Select value={selected} onValueChange={(v) => setSelected(v ?? "")}>
-                  <SelectTrigger className="w-full !px-4">
-                    <SelectValue
-                      placeholder={
-                        ollamaReachable
-                          ? "Ollama has no models - pull one first"
-                          : "Ollama isn't reachable - start it and refresh"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {options.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Ollama URL" htmlFor="ollama">
-                <Input
-                  id="ollama"
-                  className="!px-4"
-                  value={ollamaBaseUrl}
-                  onChange={(e) => setOllamaBaseUrl(e.target.value)}
-                  placeholder="http://localhost:11434/v1"
-                />
-              </Field>
-            </>
-          ) : (
-            <>
-              <Field label="Cloud model" htmlFor="cloudModel">
-                <Input
-                  id="cloudModel"
-                  className="!px-4"
-                  value={cloudModel}
-                  onChange={(e) => setCloudModel(e.target.value)}
-                  placeholder={cloudModelHint || "gpt-5.4-nano"}
-                />
-              </Field>
-              <Field
-                label="OpenAI API key"
-                htmlFor="openAiKey"
-                help={
-                  <span className={openAiKeyPresent ? "text-muted-foreground" : "text-destructive"}>
-                    {openAiKeyPresent
-                      ? "A key is saved. It's stored only on this machine and never shown again; type a new one to replace it."
-                      : "No key set. Paste your OpenAI API key here and save. It's stored only on this machine."}
-                  </span>
-                }
-              >
-                <Input
-                  id="openAiKey"
-                  className="!px-4"
-                  type="password"
-                  autoComplete="off"
-                  value={openAiKey}
-                  onChange={(e) => setOpenAiKey(e.target.value)}
-                  placeholder={openAiKeyPresent ? "Saved - type a new key to replace it" : "sk-..."}
-                />
-              </Field>
-            </>
-          )}
         </SettingsSection>
 
         <div

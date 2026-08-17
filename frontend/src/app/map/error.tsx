@@ -1,8 +1,8 @@
 "use client"
 
 // Next.js App Router error boundary for the /map subtree - the whole app, since `/`
-// redirects here. Catches render errors in the workspace shell, the providers, and the Map /
-// Narrate modes so an unexpected throw shows a calm recovery screen instead of a blank page.
+// redirects here. Catches render errors in the workspace shell, the providers, and the Map,
+// so an unexpected throw shows a calm recovery screen instead of a blank page.
 
 import { useEffect } from "react"
 import Link from "next/link"

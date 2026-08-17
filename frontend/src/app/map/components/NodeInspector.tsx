@@ -1,6 +1,6 @@
 "use client"
 
-import { X, FileText, AudioLines, ExternalLink } from "lucide-react"
+import { X, FileText, ExternalLink } from "lucide-react"
 
 import { type AtlasNode } from "./GraphView"
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,12 +10,10 @@ export default function NodeInspector({
   node,
   onClose,
   onOpenPdf,
-  onNarrate,
 }: {
   node: AtlasNode
   onClose: () => void
   onOpenPdf: (n: AtlasNode) => void
-  onNarrate: (n: AtlasNode) => void
 }) {
   const isOwned = node.type === "owned"
   const authors = node.authors?.length
@@ -67,18 +65,13 @@ export default function NodeInspector({
         ) : null}
 
         <div
-          className={`grid gap-3 border-t bg-background/80 ${isOwned ? "grid-cols-3" : "grid-cols-1"}`}
+          className={`grid gap-3 border-t bg-background/80 ${isOwned ? "grid-cols-2" : "grid-cols-1"}`}
           style={{ padding: "1rem 1.25rem" }}
         >
           {isOwned ? (
-            <>
-              <Button size="sm" className="min-w-0" onClick={() => onOpenPdf(node)}>
-                <FileText /> Open PDF
-              </Button>
-              <Button size="sm" variant="outline" className="min-w-0" onClick={() => onNarrate(node)}>
-                <AudioLines /> Narrate
-              </Button>
-            </>
+            <Button size="sm" className="min-w-0" onClick={() => onOpenPdf(node)}>
+              <FileText /> Open PDF
+            </Button>
           ) : null}
           {doiUrl ? (
             <a
@@ -89,8 +82,6 @@ export default function NodeInspector({
             >
               <ExternalLink /> DOI
             </a>
-          ) : isOwned ? (
-            <span aria-hidden />
           ) : null}
         </div>
       </Card>

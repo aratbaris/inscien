@@ -1,7 +1,7 @@
-"""Shared in-process background-job runner for the app's background jobs (narration, the
-voice-model download, OpenAlex reference fetches, and Zotero indexing).
+"""Shared in-process background-job runner for the app's background jobs (the OpenAlex
+reference fetches behind the Map).
 
-Each is IO/LLM-bound, so it uses the same pattern: a single-worker (serialized) executor,
+Each is IO-bound, so it uses the same pattern: a single-worker (serialized) executor,
 job state persisted to a volume so the UI can poll across reloads, and stale
 `queued`/`running` jobs failed on startup (an in-process worker doesn't survive a restart).
 This class is that pattern, parameterized by the job's jobs dir + public-field projection;
@@ -23,8 +23,8 @@ from services.state_guard import DerivedStateReset, claim_generation, ensure_cur
 class _JobCancelled(Exception):
     """Raised inside a job when it's been cancelled (e.g. its selection is no longer shown)."""
 
-# Cap completed (done/error) job files kept per jobs dir, newest-first. Bounds disk growth and
-# the narration registry's per-request dir scan; queued/running jobs are never pruned.
+# Cap completed (done/error) job files kept per jobs dir, newest-first. Bounds disk growth;
+# queued/running jobs are never pruned.
 JOB_RETENTION_MAX = int(os.getenv("JOB_RETENTION_MAX", "200"))
 
 
@@ -94,8 +94,7 @@ class JobRunner:
             self._set(job_id, status="error", error=last)
         finally:
             # Job is terminal and fully persisted; drop it from memory so the dict only holds
-            # in-flight jobs. `get` falls back to the persisted file, so pollers and the
-            # narration registry (which globs disk) are unaffected.
+            # in-flight jobs. `get` falls back to the persisted file, so pollers are unaffected.
             with self._lock:
                 self._jobs.pop(job_id, None)
                 self._cancelled.discard(job_id)

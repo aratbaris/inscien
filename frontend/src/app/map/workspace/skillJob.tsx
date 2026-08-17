@@ -19,16 +19,16 @@ interface TrackHandlers<T extends JobStatus> {
   fallbackError?: string
 }
 
-// Shared background-job plumbing for the workspace modes (Narrate, and the Map's citations
-// fetch): the run-generation token + unmount cancellation, progress/error state, and the
-// `pollJob` wiring. Each mode keeps its own `phase` enum and success handling; this just
-// removes the duplicated "bump token, reset, poll-with-cancellation, surface errors".
+// Shared background-job plumbing for the workspace (the Map's citations fetch): the
+// run-generation token + unmount cancellation, progress/error state, and the `pollJob`
+// wiring. The caller keeps its own `phase` enum and success handling; this just removes the
+// duplicated "bump token, reset, poll-with-cancellation, surface errors".
 export function useSkillJob() {
   const runToken = useRef(0)
   const [progress, setProgress] = useState<SkillProgress>({})
   const [error, setError] = useState<string | null>(null)
 
-  // Stop any in-flight poll loop when the mode unmounts (e.g. switching to Ask).
+  // Stop any in-flight poll loop when the caller unmounts.
   useEffect(() => () => { runToken.current += 1 }, [])
 
   // Begin a new run: invalidate any in-flight poll and clear progress/error. Returns the
@@ -43,7 +43,7 @@ export function useSkillJob() {
   const isStale = useCallback((token: number) => token !== runToken.current, [])
 
   // Poll a job to completion with shared cancellation + progress/error wiring. Works for a
-  // fresh run and for re-attaching to an already-running job (NarrateMode). Returns the
+  // fresh run and for re-attaching to an already-running job. Returns the
   // poll promise so callers can `await` it.
   const track = useCallback(
     <T extends JobStatus>(
@@ -70,8 +70,8 @@ export function useSkillJob() {
   return { progress, setProgress, error, setError, newRun, isStale, track }
 }
 
-// The running progress bar shared by every skill mode. `minPct`/`defaultPct` reproduce each
-// mode's exact bar width; `note` is the optional background-generation line (NarrateMode).
+// The running progress bar. `minPct`/`defaultPct` set the bar width; `note` is an optional
+// background-progress line.
 export function JobProgress({
   progress,
   fallback,

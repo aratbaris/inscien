@@ -1,7 +1,7 @@
 """Durable data-dir resolution - one base dir for everything InScien persists.
 
-SQLite, the OpenAlex cache, job records, narration audio, the Zotero snapshot, and the Kokoro
-weights all live under one base directory. For host dev that's the repo-root `data/` folder
+SQLite, the OpenAlex cache, job records, and the Zotero snapshot all live under one base
+directory. For host dev that's the repo-root `data/` folder
 (default below); in the installed app `launcher.py` sets `INSCIEN_DATA_DIR` to the OS per-user
 app-data dir, so a single env var redirects them all. Each individual path still honours its own
 explicit override (e.g. `INSCIEN_VECTORS_PATH`) for back-compat.

@@ -3,16 +3,13 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react"
 
 import { type PdfTab } from "../components/PdfViewerPanel"
-import { type WorkspaceMode } from "./ActionBar"
-
-// A finished narration handed to NarrateMode to play directly.
-export type ActiveArtifact =
-  | { kind: "narration"; docId: string; jobId: string; title: string }
-  | null
+import { type Lens } from "./LensBar"
 
 interface WorkspaceValue {
-  mode: WorkspaceMode
-  setMode: (m: WorkspaceMode) => void
+  // The active citation lens, held here because the switch lives in the top bar and the graph
+  // that reads it lives below - siblings, so neither can own the state.
+  lens: Lens
+  setLens: (l: Lens) => void
   openPdf: (t: { sourceId?: string | null; title?: string; page?: number | null; passage?: string; bbox?: number[] | null }) => void
   pdfTabs: PdfTab[]
   activePdfTabId: string | null
@@ -20,13 +17,11 @@ interface WorkspaceValue {
   selectPdfTab: (id: string) => void
   closePdfTab: (id: string) => void
   closePdfPanel: () => void
-  activeArtifact: ActiveArtifact
-  setActiveArtifact: (a: ActiveArtifact) => void
 }
 
 const WorkspaceContext = createContext<WorkspaceValue>({
-  mode: "graph",
-  setMode: () => {},
+  lens: "cite",
+  setLens: () => {},
   openPdf: () => {},
   pdfTabs: [],
   activePdfTabId: null,
@@ -34,22 +29,12 @@ const WorkspaceContext = createContext<WorkspaceValue>({
   selectPdfTab: () => {},
   closePdfTab: () => {},
   closePdfPanel: () => {},
-  activeArtifact: null,
-  setActiveArtifact: () => {},
 })
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeRaw] = useState<WorkspaceMode>("graph")
+  const [lens, setLens] = useState<Lens>("cite")
   const [pdfTabs, setPdfTabs] = useState<PdfTab[]>([])
   const [activePdfTabId, setActivePdfTabId] = useState<string | null>(null)
-  const [activeArtifact, setActiveArtifact] = useState<ActiveArtifact>(null)
-
-  // Switching mode via the action bar starts fresh - drop any loaded run. (loadRun
-  // sets the artifact *after* calling setMode, so reloads still win.)
-  const setMode = useCallback((m: WorkspaceMode) => {
-    setModeRaw(m)
-    setActiveArtifact(null)
-  }, [])
 
   const openPdf = useCallback(
     (t: { sourceId?: string | null; title?: string; page?: number | null; passage?: string; bbox?: number[] | null }) => {
@@ -90,8 +75,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   return (
     <WorkspaceContext.Provider
       value={{
-        mode,
-        setMode,
+        lens,
+        setLens,
         openPdf,
         pdfTabs,
         activePdfTabId,
@@ -99,8 +84,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         selectPdfTab,
         closePdfTab,
         closePdfPanel,
-        activeArtifact,
-        setActiveArtifact,
       }}
     >
       {children}

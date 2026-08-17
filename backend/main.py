@@ -20,7 +20,6 @@ from core.db import engine, Base, ensure_app_settings_columns
 from routers.settings import router as settings_router
 from routers.papers import router as papers_router
 from routers.graph import router as graph_router
-from routers.narrate import router as narrate_router
 from routers.zotero import router as zotero_router
 import os
 
@@ -31,14 +30,10 @@ ENV_NAME = os.getenv("ENV_NAME", "development")
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     # No migration framework: additively add columns that create_all can't add to an
-    # already-existing table (e.g. llm_provider on a returning user's app_settings).
+    # already-existing table (e.g. zotero_data_dir on a returning user's app_settings).
     ensure_app_settings_columns()
     # In-process jobs don't survive a restart - fail any that were mid-run.
-    from services.narration.jobs import recover_stale as recover_narration
-    from services.narration.model import recover_stale as recover_narrate_model
     from services.refs.fetch_jobs import recover_stale as recover_graph_fetch
-    recover_narration()
-    recover_narrate_model()
     recover_graph_fetch()
     yield
 
@@ -46,7 +41,7 @@ async def lifespan(app: FastAPI):
 if ENV_NAME == "production":
     app = FastAPI(
         title="InScien Backend API",
-        version="0.1.6",
+        version="0.4.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
@@ -55,7 +50,7 @@ if ENV_NAME == "production":
 else:
     app = FastAPI(
         title="InScien Backend API",
-        version="0.1.6",
+        version="0.4.0",
         lifespan=lifespan,
     )
 
@@ -77,25 +72,22 @@ app.add_middleware(
 app.include_router(settings_router)
 app.include_router(papers_router)
 app.include_router(graph_router)
-app.include_router(narrate_router)
 app.include_router(zotero_router)
 
 
 @app.get("/health")
 async def health():
-    # Liveness only - fast and dependency-free, so the compose healthcheck reflects "the API
-    # process is serving" and never flaps on a host Ollama being down. See /health/ready.
+    # Liveness only - fast and dependency-free, so a healthcheck reflects "the API process is
+    # serving" and never flaps on anything external. See /health/ready.
     return {"status": "ok"}
 
 
 @app.get("/health/ready")
 def health_ready():
-    """Readiness/diagnostics: probe each dependency without ever failing the request. Ollama
-    is informational (it lives on the host and may legitimately be down); readiness needs only
-    the API's own store (SQLite)."""
+    """Readiness/diagnostics: probe the API's own store (SQLite) without ever failing the
+    request. InScien has no other runtime dependency - the Map talks to OpenAlex on demand."""
     from sqlalchemy import text
     from core.db import SessionLocal
-    from services.llm.client import list_ollama_models_status
 
     db_ok = False
     try:
@@ -108,12 +100,7 @@ def health_ready():
     except Exception:
         logging.getLogger("health").exception("readiness: DB probe failed")
 
-    try:
-        ollama_ok = bool(list_ollama_models_status().get("reachable"))
-    except Exception:
-        ollama_ok = False
-
-    return {"db": db_ok, "ollama": ollama_ok, "ready": db_ok}
+    return {"db": db_ok, "ready": db_ok}
 
 
 # Serve the built frontend (Next static export) when present. The production image bakes the

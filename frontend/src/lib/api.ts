@@ -34,8 +34,7 @@ async function doFetch(path: string, init?: RequestInit): Promise<Response> {
   }
 }
 
-// InScien is single-user/local with no auth - these are plain calls (the backend
-// chat endpoints are unauthenticated).
+// InScien is single-user/local with no auth - these are plain calls.
 async function authedGet<T>(path: string): Promise<T> {
   const res = await doFetch(path, { method: "GET" })
   if (!res.ok) throw new Error(await getErrorMessage(res))
@@ -52,27 +51,17 @@ async function authedAction<T>(path: string, method: string, body?: unknown): Pr
   return res.json()
 }
 
-// ---- Settings (provider/model + display name) ----
+// ---- Settings (the Zotero data folder + display name) ----
 
-// Local by default; "openai" is opt-in. The OpenAI key is env-only (OPENAI_API_KEY) - never
-// sent through the API; the backend only reports whether it's present.
 export interface AppSettings {
   displayName: string
-  llmProvider: string          // "local" | "openai"
-  llmModel: string
-  ollamaBaseUrl: string
   zoteroDataDir: string
   zoteroDataDirDetected: string
-  openAiApiKeyPresent: boolean
 }
 
 export interface AppSettingsUpdate {
   displayName?: string
-  llmProvider?: string
-  llmModel?: string
-  ollamaBaseUrl?: string
   zoteroDataDir?: string
-  openAiApiKey?: string         // write-only; only sent when the user enters a new key
 }
 
 export async function getSettings(): Promise<AppSettings> {
@@ -83,34 +72,7 @@ export async function updateSettings(body: AppSettingsUpdate): Promise<AppSettin
   return authedAction("/api/settings", "PUT", body)
 }
 
-export interface ModelOption {
-  value: string     // "local|<model>", e.g. "local|qwen2.5:7b"
-  label: string
-  provider: string  // "local" (cloud models are free-text, not enumerated)
-  model: string
-}
-
-export async function getModelOptions(): Promise<{
-  options: ModelOption[]
-  ollamaReachable: boolean
-  cloudModelHint?: string
-}> {
-  return authedGet("/api/settings/models")
-}
-
-// ---- Narration (paper -> audio, background job) ----
-
-export interface NarrationStatus {
-  id: string
-  title?: string
-  status: "queued" | "running" | "done" | "error"
-  stage?: string
-  progress?: number
-  detail?: string
-  error?: string
-  durationMin?: number
-  faithfulness?: string
-}
+// ---- Papers (the flat library list, for title lookups) ----
 
 export interface PaperItem {
   docId: string
@@ -166,52 +128,6 @@ export async function reconcileZotero(): Promise<{
   reason?: string
 }> {
   return authedAction("/api/zotero/reconcile", "POST")
-}
-
-export async function startNarration(
-  opts: { query?: string; docId?: string },
-): Promise<{ jobId: string; title?: string }> {
-  return authedAction("/api/narrate", "POST", opts)
-}
-
-export async function getNarration(jobId: string): Promise<NarrationStatus> {
-  return authedGet(`/api/narrate/${encodeURIComponent(jobId)}`)
-}
-
-// The in-progress (queued/running) narration for a paper, or null - used to re-attach to
-// a narration started before the user navigated away.
-export async function activeNarration(docId: string): Promise<{ job: NarrationStatus | null }> {
-  return authedGet(`/api/narrate/active?docId=${encodeURIComponent(docId)}`)
-}
-
-export interface NarrationRegistryItem {
-  docId: string
-  jobId: string
-  title: string
-  audioUrl: string
-}
-
-export async function listNarrations(): Promise<{ items: NarrationRegistryItem[] }> {
-  return authedGet("/api/narrate/registry")
-}
-
-// TTS (Kokoro) weights: present-check + a one-time download job (the desktop build doesn't bundle
-// them). Reuses the NarrationStatus job shape for progress polling.
-export async function getNarrateModel(): Promise<{ present: boolean }> {
-  return authedGet("/api/narrate/model")
-}
-
-export async function startNarrateModelDownload(): Promise<{ jobId: string }> {
-  return authedAction("/api/narrate/model/download", "POST")
-}
-
-// Reveal the saved mp3 in the OS file manager (the local backend can, the browser can't).
-export async function revealNarration(jobId: string): Promise<{ ok: boolean }> {
-  return authedAction(`/api/narrate/${encodeURIComponent(jobId)}/reveal`, "POST")
-}
-
-export async function getNarrateModelDownload(jobId: string): Promise<NarrationStatus> {
-  return authedGet(`/api/narrate/model/download/${encodeURIComponent(jobId)}`)
 }
 
 // ---- Literature discovery graph (OpenAlex, selection-scoped) ----

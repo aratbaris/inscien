@@ -1,12 +1,11 @@
 "use client"
 
 import { useCallback, useEffect, useState, type PointerEvent } from "react"
-import { Check, ChevronRight, Info, Loader2, Play, RefreshCw, X } from "lucide-react"
+import { Check, ChevronRight, Info, Loader2, RefreshCw, X } from "lucide-react"
 
 import {
   fetchZoteroCollections,
   fetchZoteroItems,
-  listNarrations,
   listPapers,
   mappedKeys,
   reconcileZotero,
@@ -14,7 +13,6 @@ import {
   type ZoteroItem,
 } from "@/lib/api"
 import { useZoteroSelection } from "@/lib/ZoteroSelectionProvider"
-import { useWorkspace } from "@/app/map/workspace/WorkspaceProvider"
 import {
   Sidebar,
   SidebarContent,
@@ -36,7 +34,6 @@ type Props = {
 
 export default function ZoteroNavigator({ onResizeStart }: Props) {
   const { selectedKeys, toggle, setMany, clear, persistError } = useZoteroSelection()
-  const { setMode, setActiveArtifact } = useWorkspace()
 
   const [collections, setCollections] = useState<ZoteroCollection[]>([])
   const [liveConnected, setLiveConnected] = useState(true)
@@ -48,7 +45,6 @@ export default function ZoteroNavigator({ onResizeStart }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [reconciling, setReconciling] = useState(false)
   const [reconcileMsg, setReconcileMsg] = useState<string | null>(null)
-  const [narrations, setNarrations] = useState<Map<string, { jobId: string; title: string }>>(new Map())
   // Papers OpenAlex resolved citation data for -> "mappable" (a check in the tree). Filled from the
   // cache on load; a selection's citations are fetched lazily by the Map when you view it, so we
   // never bulk-fetch the whole library or a whole collection (that hits OpenAlex rate limits).
@@ -63,9 +59,8 @@ export default function ZoteroNavigator({ onResizeStart }: Props) {
     // (and new ones appear) on reload; expanded collections re-fetch via the effect below.
     setItems({})
     try {
-      const [cols, narr, corpus, maps] = await Promise.all([
+      const [cols, corpus, maps] = await Promise.all([
         fetchZoteroCollections(),
-        listNarrations(),
         listPapers(),
         mappedKeys(),
       ])
@@ -73,7 +68,6 @@ export default function ZoteroNavigator({ onResizeStart }: Props) {
       setLiveConnected(cols.liveConnected !== false)
       setLibraryMissing(cols.libraryMissing === true)
       setMountPath(cols.mountPath ?? null)
-      setNarrations(new Map(narr.items.map((n) => [n.docId, { jobId: n.jobId, title: n.title }])))
       setMapped(new Set(maps.keys))
       setTitleByKey((prev) => {
         const next = new Map(prev)
@@ -195,7 +189,6 @@ export default function ZoteroNavigator({ onResizeStart }: Props) {
                 // A paper with no DOI can't be mapped; one with a DOI shows a check once its
                 // citations are cached (fetched lazily when you view it on the Map).
                 const unmappable = !item.doi
-                const narration = narrations.get(item.itemKey)
                 const reason = !item.doi
                   ? "No DOI - not on the map"
                   : (item.title ?? item.itemKey)
@@ -216,36 +209,6 @@ export default function ZoteroNavigator({ onResizeStart }: Props) {
                       {item.year ? <span className="ml-1 text-muted-foreground">{item.year}</span> : null}
                     </button>
                     <div className="flex shrink-0 items-center gap-0.5">
-                      {narration ? (
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                className="!w-7"
-                                aria-label="Play narration"
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  setMode("narrate")
-                                  setActiveArtifact({
-                                    kind: "narration",
-                                    docId: item.itemKey,
-                                    jobId: narration.jobId,
-                                    title: narration.title || item.title || "",
-                                  })
-                                }}
-                              >
-                                <Play />
-                              </Button>
-                            }
-                          />
-                          <TooltipContent>Play narration</TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <span className="h-6 w-7" aria-hidden />
-                      )}
                       {isMapped ? (
                         <Tooltip>
                           <TooltipTrigger

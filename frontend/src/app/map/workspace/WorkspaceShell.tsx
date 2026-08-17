@@ -8,7 +8,6 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import PdfViewerPanel from "../components/PdfViewerPanel"
 import TopBar from "./TopBar"
 import GraphMode from "./GraphMode"
-import NarrateMode from "./NarrateMode"
 import { useWorkspace } from "./WorkspaceProvider"
 
 const SIDEBAR_WIDTH_STORAGE_KEY = "inscien.sidebarWidth"
@@ -16,10 +15,10 @@ const DEFAULT_SIDEBAR_WIDTH = 256
 const MIN_SIDEBAR_WIDTH = 224
 const MAX_SIDEBAR_WIDTH = 420
 
-// The whole app shell: the Zotero library sidebar + the active mode (Map / Narrate) and a
-// draggable PDF viewer panel inside the sidebar inset. No chat - InScien is two transformation modes.
+// The whole app shell: the Zotero library sidebar + the Map and a draggable PDF viewer panel
+// inside the sidebar inset.
 export default function WorkspaceShell() {
-  const { mode, setMode, pdfTabs, activePdfTabId, hasOpenPdf, selectPdfTab, closePdfTab, closePdfPanel } =
+  const { pdfTabs, activePdfTabId, hasOpenPdf, selectPdfTab, closePdfTab, closePdfPanel } =
     useWorkspace()
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
 
@@ -67,10 +66,10 @@ export default function WorkspaceShell() {
     <SidebarProvider style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}>
       <ZoteroNavigator onResizeStart={startSidebarResize} />
       <SidebarInset className="h-svh overflow-hidden">
-        <TopBar mode={mode} onChange={setMode} />
+        <TopBar />
         <ResizablePanelGroup className="min-h-0 flex-1">
           <ResizablePanel id="main" defaultSize={62} minSize={30} className="flex min-w-0 flex-col">
-            {mode === "narrate" ? <NarrateMode /> : <GraphMode />}
+            <GraphMode />
           </ResizablePanel>
           {hasOpenPdf ? (
             <>

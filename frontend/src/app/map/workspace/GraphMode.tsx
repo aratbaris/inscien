@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Loader2 } from "lucide-react"
 
 import {
@@ -19,9 +19,6 @@ import GraphView, { type AtlasEdge, type AtlasNode, type GraphLayout } from "../
 import NodeInspector from "../components/NodeInspector"
 import { Separator } from "@/components/ui/separator"
 import { Toggle } from "@/components/ui/toggle"
-
-// The two citation lenses: what your papers cite (References) and what cites them (Cited by).
-type Lens = "cite" | "cited"
 
 // A cached layer, tagged with the selection it was fetched for (so a selection change invalidates
 // it cleanly) and whether every selected paper is in it (`complete` -> no more fetching needed).
@@ -80,11 +77,11 @@ function Chips<T extends string>({ value, options, onChange }: {
 }
 
 export default function GraphMode() {
-  const { selectedKeys, setMany, clear } = useZoteroSelection()
-  const { openPdf, setMode } = useWorkspace()
+  const { selectedKeys } = useZoteroSelection()
+  // The lens lives in the workspace context - its switch is up in the top bar.
+  const { openPdf, lens } = useWorkspace()
 
   // View controls.
-  const [lens, setLens] = useState<Lens>("cite")
   const [layout, setLayout] = useState<GraphLayout>("network")
   const [colorCollections, setColorCollections] = useState(false)
   const [showTitles, setShowTitles] = useState(false)
@@ -221,13 +218,6 @@ export default function GraphMode() {
   const ownedCount = useMemo(() => composed.nodes.filter((n) => n.type === "owned").length, [composed.nodes])
   const selectedNode = useMemo(() => composed.nodes.find((n) => n.id === selectedId) ?? null, [composed.nodes, selectedId])
 
-  const narrate = useCallback((n: AtlasNode) => {
-    // Narrate operates on the single selected paper - make this the selection, then jump to Narrate.
-    clear()
-    setMany([n.id], true)
-    setMode("narrate")
-  }, [clear, setMany, setMode])
-
   if (phase === "empty") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
@@ -257,18 +247,6 @@ export default function GraphMode() {
           className="flex h-13 items-center gap-4 overflow-x-auto border-t"
           style={{ paddingLeft: "3.5rem", paddingRight: "2rem" }}
         >
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">Lens</span>
-            <Chips<Lens>
-              value={lens}
-              options={[
-                { v: "cite", label: "References" },
-                { v: "cited", label: "Cited by" },
-              ]}
-              onChange={setLens}
-            />
-          </div>
-          <Separator orientation="vertical" className="h-6 shrink-0" />
           <div className="flex shrink-0 items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground">Layout</span>
             <Chips<GraphLayout>
@@ -340,7 +318,6 @@ export default function GraphMode() {
               node={selectedNode}
               onClose={() => setSelectedId(null)}
               onOpenPdf={(n) => openPdf({ sourceId: n.id, title: n.label, page: 1 })}
-              onNarrate={narrate}
             />
           ) : null}
         </div>

@@ -94,20 +94,18 @@ def indexable_keys(collection_id: int):
 
 @router.post("/reset")
 def reset():
-    """Clear derived citation data (the OpenAlex cache) and any in-flight narration / citation
-    fetch jobs. The Zotero library itself is never touched."""
+    """Clear derived citation data (the OpenAlex cache) and any in-flight citation fetch jobs.
+    The Zotero library itself is never touched."""
     from services.state_guard import begin_reset, end_reset
-    from services.narration.jobs import clear_jobs as clear_narration
     from services.refs.fetch_jobs import clear_jobs as clear_graph_fetch
     from services.refs import refstore
 
     begin_reset()
     try:
-        for clear in (clear_narration, clear_graph_fetch):
-            try:
-                clear()
-            except Exception:
-                logger.exception("reset: job cleanup failed (non-fatal)")
+        try:
+            clear_graph_fetch()
+        except Exception:
+            logger.exception("reset: job cleanup failed (non-fatal)")
         refstore.reset_cache()
     finally:
         end_reset()

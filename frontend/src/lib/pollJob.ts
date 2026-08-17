@@ -1,4 +1,4 @@
-// Shared background-job poll loop used by the Narrate flow, the Map's citations fetch, and
+// Shared background-job poll loop used by the Map's citations fetch and
 // the navigator's auto-index. Each caller keeps its own cancellation token; this just removes
 // the duplicated "poll until done/error, with progress + cancellation" loop.
 

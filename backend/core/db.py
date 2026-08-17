@@ -68,10 +68,14 @@ def ensure_app_settings_columns() -> None:
 
     There is no migration framework - `Base.metadata.create_all` builds missing *tables* but
     never adds missing *columns* to a table that already exists. So a returning user's
-    `app_settings` won't gain `llm_provider` on its own. Add it with an idempotent, guarded
+    `app_settings` won't gain `zotero_data_dir` on its own. Add it with an idempotent, guarded
     `ALTER TABLE ... ADD COLUMN` (SQLite backfills existing rows from the literal DEFAULT). A
     brand-new DB already has the column via the model, so this is a no-op there; a legacy DB
     that already carries the column is also a clean no-op.
+
+    Columns are only ever ADDED here. A 0.3.x DB still carries the retired Narrate settings
+    (`llm_provider`, `llm_model`, `ollama_base_url`, `openai_api_key`); they are left in place,
+    unmapped and unread, rather than dropped.
     """
     inspector = inspect(engine)
     if "app_settings" not in inspector.get_table_names():
@@ -79,8 +83,6 @@ def ensure_app_settings_columns() -> None:
 
     existing = {c["name"] for c in inspector.get_columns("app_settings")}
     additive = {
-        "llm_provider": "ALTER TABLE app_settings ADD COLUMN llm_provider VARCHAR(20) NOT NULL DEFAULT 'local'",
-        "openai_api_key": "ALTER TABLE app_settings ADD COLUMN openai_api_key VARCHAR(200)",
         "zotero_data_dir": "ALTER TABLE app_settings ADD COLUMN zotero_data_dir VARCHAR(500)",
     }
     for column, ddl in additive.items():

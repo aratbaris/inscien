@@ -4,8 +4,8 @@ This is how InScien ships: the backend serves BOTH the API and the static UI on 
 port, and we open the system browser at it. One process, one origin, no native window and no
 separate frontend server.
 
-Installed as the `inscien` console script (see pyproject.toml). Everything is self-contained:
-Kokoro bundles espeak via espeakng-loader, imageio-ffmpeg bundles ffmpeg - no system packages.
+Installed as the `inscien` console script (see pyproject.toml). Pure Python, no system packages
+and no model - the Map is built from OpenAlex over each paper's DOI.
 """
 
 import os

@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/papers", tags=["papers"])
 
 def corpus_papers():
     """[{docId, title}] over the whole Zotero library (docId == itemKey). Sourced live from the
-    Zotero reader; the registry for the narration picker and narration paper-resolution."""
+    Zotero reader; the flat title lookup the library sidebar reads."""
     return [
         {"docId": it["itemKey"], "title": it.get("title") or it["itemKey"]}
         for it in library_items()
@@ -29,7 +29,7 @@ def corpus_papers():
 
 @router.get("")
 def list_papers():
-    """The library, for the inline narration picker."""
+    """The library as a flat [{docId, title}] list, for the sidebar's title lookup."""
     return {"papers": [{"docId": p["docId"], "title": p["title"]} for p in corpus_papers()]}
 
 

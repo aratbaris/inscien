@@ -309,8 +309,8 @@ def live_item_keys():
 def library_items():
     """One-query [{itemKey, title, doi, itemType, year, isBookDefaultOff}] over the whole live
     library (top-level items, excluding trash/attachments/notes). Batch alternative to calling
-    `item_metadata()` per key - the registry for narration + the library list, and the source of
-    DOI-bearing keys for the citation prefetch."""
+    `item_metadata()` per key - the library list, and the source of DOI-bearing keys for the
+    citation prefetch."""
     con = _connect()
     try:
         rows = con.execute(
