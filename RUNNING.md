@@ -4,24 +4,22 @@ How to run InScien in **development** (host-native, no Docker), how the shipped 
 inscien`) serves everything from one process, and how a release is cut. For what InScien *is*,
 see [`README.md`](README.md); for architecture internals, [`CLAUDE.md`](CLAUDE.md).
 
-InScien is **local-first and single-user**: one machine, no auth, no cloud. Generation runs
-against a **native Ollama on the host** (or an optional OpenAI key); everything else runs locally.
+InScien is **local-first and single-user**: one machine, no auth, no cloud, no model. The only
+outbound traffic is public DOI lookups to OpenAlex when you build a citation map.
 
 ---
 
 ## Development (run from source)
 
 No Docker, no `.env`. Two processes on native ports - the backend (FastAPI) on `:8000` and the
-Next dev server on `:3000`. Config lives in the in-app **Settings** page (Zotero folder, Ollama
-URL, OpenAI key, model), so there is nothing to configure on disk.
+Next dev server on `:3000`. The one setting (the Zotero folder) lives in the in-app **Settings**
+page, so there is nothing to configure on disk.
 
 Host prereqs: **[`uv`](https://docs.astral.sh/uv/)** and **Node** (on Arch, Node comes from
-`nodejs-lts-jod` - keep it; do not let pacman swap in the bleeding-edge `nodejs` package). TTS is
-fully bundled - Kokoro (>=0.5) ships espeak via `espeakng-loader` and `ffmpeg` via
-`imageio-ffmpeg` - so **no system packages** (no `espeak-ng`, no `ffmpeg`) are needed. The
-backend pins to Python 3.12; `uv venv --python 3.12` (run by `make setup`) fetches it
-automatically, so no system Python 3.12 is needed. The ~1GB Kokoro voice downloads on demand from
-the Narrate UI on first use.
+`nodejs-lts-jod` - keep it; do not let pacman swap in the bleeding-edge `nodejs` package).
+**No system packages** are needed - the backend is pure Python with no ML runtime. It pins to
+Python 3.12; `uv venv --python 3.12` (run by `make setup`) fetches it automatically, so no system
+Python 3.12 is needed.
 
 Run `make setup` **first** (once), then start the two servers in separate terminals:
 
@@ -36,8 +34,7 @@ If `make backend` reports `.venv/bin/uvicorn: No such file` or `make frontend` r
 
 Open **http://localhost:3000**. The frontend talks to the backend cross-origin
 (`:3000` -> `:8000`), which the backend allows by default (`main.py` defaults `CORS_ORIGINS` to
-localhost). First run: open Settings, set your Zotero data folder, and connect a model if you
-want narration.
+localhost). First run: open Settings and set your Zotero data folder.
 
 ---
 
@@ -48,9 +45,8 @@ PyPI, run as `uvx inscien` (or `uv tool install inscien`). It starts the backend
 BOTH the API and the static UI on one loopback port, and opens the user's own browser at it -
 `backend/launcher.py` is the entry point. The wheel is built + published by
 [`.github/workflows/release.yml`](.github/workflows/release.yml) on a `v*` tag (single Linux job;
-native deps resolve per-OS at install time). Everything is self-contained: Kokoro bundles espeak
-(via `espeakng-loader`), `imageio-ffmpeg` bundles ffmpeg - no system packages. There are no
-native desktop installers and nothing is frozen with PyInstaller.
+pure Python, so one build serves every OS). There are no native desktop installers and nothing is
+frozen with PyInstaller.
 
 What matters here is *how it serves*: **one process, one origin** - the same shape as dev's
 backend, minus the separate Next dev server.
@@ -101,10 +97,9 @@ sets `INSCIEN_DATA_DIR` via `platformdirs`).
 
 | Path | What |
 |---|---|
-| `data/inscien.db` | SQLite - app settings (incl. the OpenAI key + Zotero folder) |
+| `data/inscien.db` | SQLite - app settings (the Zotero folder) |
 | `data/openalex.json` | OpenAlex citation cache (each paper's references / citers) |
 | `data/zotero-snapshot.sqlite` | Private read-only copy of your Zotero DB |
-| narration mp3s, job state, Kokoro weights | Caches / derived artifacts |
 
 Your **Zotero library is the only irreplaceable input**; everything under `data/` is **derived**
 and rebuildable by re-fetching from the UI.
@@ -119,14 +114,14 @@ There is no reset button in the UI - it's an API-only operation.
 
 ### Health & diagnostics
 - `GET /health` - liveness (dependency-free).
-- `GET /health/ready` - readiness: probes SQLite (+ Ollama, informational).
+- `GET /health/ready` - readiness: probes SQLite (the only runtime dependency).
 
 ---
 
 ## Configuration
 
-Day-to-day config is in the **Settings page** (`/api/settings`): generation provider/model, Ollama
-URL, OpenAI key, and Zotero data folder. These are stored in SQLite and override the code defaults.
+Day-to-day config is one field in the **Settings page** (`/api/settings`): the Zotero data folder.
+It is stored in SQLite and overrides the env fallback below.
 
 A few advanced knobs are read only from the environment - export them in the shell before
 `make backend` if you need to change them:
@@ -134,8 +129,6 @@ A few advanced knobs are read only from the environment - export them in the she
 | Var | Default | Purpose |
 |---|---|---|
 | `ZOTERO_DATA_DIR` | (set in Settings) | Zotero data dir (`zotero.sqlite` + `storage/`); the Settings value wins |
-| `OLLAMA_BASE_URL` | `http://localhost:11434/v1` | Where the backend reaches your native Ollama (also in Settings) |
-| `KOKORO_VOICE` | `af_heart` | Narration voice |
 | `OPENALEX_MAILTO` | `getinscien@gmail.com` | Contact for OpenAlex's polite pool (faster, fewer 429s) |
 | `INSCIEN_DATA_DIR` | repo-root `data/` | Base dir for all durable state |
 

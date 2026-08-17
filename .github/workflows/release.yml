@@ -2,9 +2,8 @@ name: release
 
 # Build and publish the `inscien` wheel to PyPI on a `v*` tag (or manually).
 #
-# InScien ships as `uvx inscien` - a browser-served local app. The wheel is pure-Python and its
-# native dependencies (onnxruntime, kokoro-onnx -> espeak via espeakng-loader, imageio-ffmpeg)
-# publish their own per-OS wheels, so this single Linux build serves Windows, macOS, and Linux.
+# InScien ships as `uvx inscien` - a browser-served local app. The wheel is pure Python with no
+# native dependencies, so this single Linux build serves Windows, macOS, and Linux.
 # This is the only release pipeline - there are no native desktop installers.
 on:
   push:

@@ -1,11 +1,10 @@
 # InScien dev (no Docker). Run the backend (FastAPI) and frontend (Next) natively on the host,
 # in two terminals: `make backend` and `make frontend`. Config lives in the in-app Settings page
-# (Zotero folder, Ollama URL, OpenAI key, model) - no .env needed.
+# (the Zotero folder) - no .env needed.
 #
-# Host prereqs: uv (https://docs.astral.sh/uv/ - `pacman -S uv`) and Node. TTS is fully bundled
-# (Kokoro ships espeak via espeakng-loader, ffmpeg via imageio-ffmpeg), so NO system packages are
-# needed. The backend deps pin against Python 3.12; uv fetches it automatically, so no system
-# python3.12 is needed. The ~1GB Kokoro voice downloads on demand from the Narrate UI.
+# Host prereqs: uv (https://docs.astral.sh/uv/ - `pacman -S uv`) and Node. NO system packages are
+# needed - the backend is pure Python with no ML runtime. Its deps pin against Python 3.12; uv
+# fetches it automatically, so no system python3.12 is needed.
 .PHONY: setup backend frontend web wheel
 
 setup:   ## one-time: create the backend venv (Python 3.12 via uv) + install backend and frontend deps
